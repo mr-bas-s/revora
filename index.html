@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#070b10" />
+    <meta
+      name="description"
+      content="Revora Tesla Browser Compatibility Test for GPS and Web Audio APIs."
+    />
+    <title>Revora — Tesla Browser Compatibility Test</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">REVORA</p>
+          <h1>Tesla Browser<br />Compatibility Test</h1>
+          <p class="intro">Live browser, GPS and audio diagnostics. No data leaves this device.</p>
+        </div>
+        <div id="overall-status" class="status-pill status-idle" role="status">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>Ready to test</span>
+        </div>
+      </header>
+
+      <section class="controls" aria-label="Test controls">
+        <button id="gps-button" class="primary-button" type="button">
+          <span class="button-label">Start GPS test</span>
+          <span class="button-hint">Tesla may ask for location access</span>
+        </button>
+        <button id="audio-button" class="secondary-button" type="button">
+          <span class="button-label">Test Web Audio</span>
+          <span id="audio-button-hint" class="button-hint">Tap to play a short tone</span>
+        </button>
+      </section>
+
+      <section class="dashboard" aria-label="Compatibility measurements">
+        <article class="card card-speed">
+          <div class="card-heading">
+            <span>GPS speed</span>
+            <span id="speed-status" class="mini-status">Waiting</span>
+          </div>
+          <div class="speed-value"><span id="speed">—</span><small>km/u</small></div>
+        </article>
+
+        <article class="card">
+          <div class="card-heading"><span>Position</span><span id="position-status" class="mini-status">Waiting</span></div>
+          <dl class="metrics">
+            <div><dt>Latitude</dt><dd id="latitude">—</dd></div>
+            <div><dt>Longitude</dt><dd id="longitude">—</dd></div>
+            <div><dt>Accuracy</dt><dd id="accuracy">—</dd></div>
+            <div><dt>Heading</dt><dd id="heading">—</dd></div>
+          </dl>
+        </article>
+
+        <article class="card">
+          <div class="card-heading"><span>GPS updates</span><span id="update-status" class="mini-status">Waiting</span></div>
+          <dl class="metrics">
+            <div><dt>Latest interval</dt><dd id="interval">—</dd></div>
+            <div><dt>Average interval</dt><dd id="average-interval">—</dd></div>
+            <div><dt>Update frequency</dt><dd id="frequency">—</dd></div>
+            <div><dt>Updates received</dt><dd id="update-count">0</dd></div>
+          </dl>
+        </article>
+
+        <article class="card">
+          <div class="card-heading"><span>Acceleration</span><span class="mini-status">GPS-derived</span></div>
+          <div class="acceleration-row">
+            <span id="acceleration-arrow" class="acceleration-arrow" aria-hidden="true">●</span>
+            <div><strong id="acceleration-label">Waiting</strong><small id="acceleration-value">— m/s²</small></div>
+          </div>
+          <p class="note">Simple indication calculated from consecutive GPS speed readings.</p>
+        </article>
+
+        <article class="card card-wide">
+          <div class="card-heading"><span>Browser &amp; API status</span><span id="api-summary" class="mini-status">Checking</span></div>
+          <div class="api-grid">
+            <div class="api-item"><span>Secure context</span><strong id="secure-context">—</strong></div>
+            <div class="api-item"><span>Geolocation API</span><strong id="geolocation-api">—</strong></div>
+            <div class="api-item"><span>Location permission</span><strong id="location-permission">—</strong></div>
+            <div class="api-item"><span>Web Audio API</span><strong id="audio-api">—</strong></div>
+          </div>
+          <details>
+            <summary>Browser details</summary>
+            <p id="browser-details" class="browser-details"></p>
+          </details>
+        </article>
+      </section>
+
+      <footer>
+        <span>Revora compatibility test</span>
+        <span id="last-update">No GPS fix received</span>
+      </footer>
+    </main>
+  </body>
+</html>
