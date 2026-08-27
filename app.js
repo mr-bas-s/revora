@@ -13,7 +13,8 @@
     secureContext: byId("secure-context"), geolocationApi: byId("geolocation-api"),
     locationPermission: byId("location-permission"), audioApi: byId("audio-api"), apiSummary: byId("api-summary"),
     browserDetails: byId("browser-details"), lastUpdate: byId("last-update"),
-    engineRpm: byId("engine-rpm"), engineLight: byId("engine-light"), engineGear: byId("engine-gear")
+    engineRpm: byId("engine-rpm"), engineLight: byId("engine-light"), engineGear: byId("engine-gear"),
+    speedNeedle: byId("speed-needle"), rpmNeedle: byId("rpm-needle"), engineStateLabel: byId("engine-state-label")
   };
 
   const state = {
@@ -70,7 +71,9 @@
     const normalizedSpeed = Math.min(Math.max(speedKph, 0) / 180, 1);
     const throttle = Math.min(Math.max(state.currentAcceleration / 2.5, 0), 1);
     ui.engineRpm.textContent = String(rpm);
-    ui.engineGear.textContent = `Gear ${gear}`;
+    ui.engineGear.textContent = String(gear);
+    ui.speedNeedle.style.transform = `translateY(-50%) rotate(${-130 + Math.min(speedKph, 220) / 220 * 260}deg)`;
+    ui.rpmNeedle.style.transform = `translateY(-50%) rotate(${-130 + Math.min(rpm, 7000) / 7000 * 260}deg)`;
 
     if (!state.engine) return;
     const now = state.engine.context.currentTime;
@@ -185,7 +188,7 @@
     if (state.watchId !== null) {
       navigator.geolocation.clearWatch(state.watchId);
       state.watchId = null;
-      ui.gpsButton.querySelector(".button-label").textContent = "Start GPS test";
+      ui.gpsButton.querySelector(".button-label").textContent = "Start GPS";
       setOverall("GPS stopped", "idle");
       return;
     }
@@ -298,9 +301,10 @@
       updateEngine(state.currentSpeedKph);
       master.gain.setValueAtTime(0.0001, context.currentTime);
       master.gain.exponentialRampToValueAtTime(0.42, context.currentTime + 0.85);
-      ui.audioButton.querySelector(".button-label").textContent = "Stop American V8";
+      ui.audioButton.querySelector(".button-label").textContent = "Stop EV Engine";
       ui.audioButton.classList.add("engine-running");
       ui.engineLight.classList.add("running");
+      ui.engineStateLabel.textContent = "V8 running";
       setValue(ui.audioApi, "V8 running", "pass");
     } catch (error) {
       setValue(ui.audioApi, "Blocked", "fail");
@@ -321,10 +325,11 @@
       });
       engine.context.close();
     }, 450);
-    ui.audioButton.querySelector(".button-label").textContent = "Start American V8";
-    ui.audioButtonHint.textContent = "Live GPS speed controls the RPM";
+    ui.audioButton.querySelector(".button-label").textContent = "Start EV Engine";
+    ui.audioButtonHint.textContent = "GPS speed controls RPM and shifting";
     ui.audioButton.classList.remove("engine-running");
     ui.engineLight.classList.remove("running");
+    ui.engineStateLabel.textContent = "Standby";
     setValue(ui.audioApi, "Available", "pass");
   }
 
@@ -364,5 +369,6 @@
 
   ui.gpsButton.addEventListener("click", startGps);
   ui.audioButton.addEventListener("click", toggleEngine);
+  updateEngine(0);
   inspectApis();
 })();
