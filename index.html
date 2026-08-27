@@ -19,7 +19,7 @@
   <body>
     <main class="shell">
       <header class="topbar">
-        <div class="brand"><span class="brand-mark" aria-hidden="true">R</span><div><strong>REVORA</strong><span>EV ENGINE</span></div></div>
+        <div class="brand"><div><strong>REVORA</strong><span>EV ENGINE</span></div></div>
         <div class="topbar-copy">GPS-linked virtual powertrain</div>
         <div id="overall-status" class="status-pill status-idle" role="status"><span class="status-dot" aria-hidden="true"></span><span>Ready</span></div>
       </header>
@@ -39,8 +39,15 @@
           <div class="engine-badge"><span id="engine-light" class="engine-light" aria-hidden="true"></span><span>AMERICAN V8</span></div>
           <div class="gear-display"><small>GEAR</small><strong id="engine-gear">1</strong><span>6-SPEED AUTO</span></div>
           <div class="engine-state"><span>Engine sound</span><strong id="engine-state-label">Standby</strong></div>
-          <button id="audio-button" class="control-button engine-button" type="button"><span class="button-label">Start EV Engine</span><span id="audio-button-hint" class="button-hint">GPS speed controls RPM and shifting</span></button>
-          <button id="gps-button" class="control-button gps-button" type="button"><span class="button-label">Start GPS</span><span class="button-hint">Live location stays on this device</span></button>
+          <div class="engine-controls">
+            <button id="rev-button" class="rev-button" type="button" aria-label="Hold to rev the virtual engine">
+              <strong>REV</strong><span>HOLD</span><i aria-hidden="true"><b id="rev-level"></b></i>
+            </button>
+            <div class="button-stack">
+              <button id="audio-button" class="control-button engine-button" type="button"><span class="button-label">Start EV Engine</span><span id="audio-button-hint" class="button-hint">GPS controls RPM and shifting</span></button>
+              <button id="gps-button" class="control-button gps-button" type="button"><span class="button-label">Start GPS</span><span class="button-hint">Location stays on this device</span></button>
+            </div>
+          </div>
         </section>
 
         <article class="gauge-card">
@@ -53,6 +60,11 @@
           <div class="gauge-caption"><span>Virtual tachometer</span><strong>×1000</strong></div>
         </article>
       </section>
+
+      <aside id="location-help" class="location-help" role="alert" hidden>
+        <div><strong>Location permission is blocked</strong><span id="location-help-text">Allow location access for this website, then try again.</span></div>
+        <button id="reload-button" type="button">Reload &amp; retry</button>
+      </aside>
 
       <section class="telemetry" aria-label="Live telemetry">
         <article class="telemetry-card">
