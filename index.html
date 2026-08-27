@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#070b10" />
     <meta
       name="description"
-      content="Revora Tesla Browser Compatibility Test for GPS and Web Audio APIs."
+      content="Revora GPS-linked American V8 engine sound test for the Tesla browser."
     />
-    <title>Revora — Tesla Browser Compatibility Test</title>
+    <title>Revora — GPS V8 Sound Test</title>
     <link rel="stylesheet" href="styles.css" />
     <script src="app.js" defer></script>
   </head>
@@ -17,8 +17,8 @@
       <header class="hero">
         <div>
           <p class="eyebrow">REVORA</p>
-          <h1>Tesla Browser<br />Compatibility Test</h1>
-          <p class="intro">Live browser, GPS and audio diagnostics. No data leaves this device.</p>
+          <h1>GPS-linked<br />American V8</h1>
+          <p class="intro">A deep V8 rumble that accelerates with your live GPS speed. No data leaves this device.</p>
         </div>
         <div id="overall-status" class="status-pill status-idle" role="status">
           <span class="status-dot" aria-hidden="true"></span>
@@ -31,10 +31,19 @@
           <span class="button-label">Start GPS test</span>
           <span class="button-hint">Tesla may ask for location access</span>
         </button>
-        <button id="audio-button" class="secondary-button" type="button">
-          <span class="button-label">Test Web Audio</span>
-          <span id="audio-button-hint" class="button-hint">Tap to play a short tone</span>
+        <button id="audio-button" class="secondary-button engine-button" type="button">
+          <span class="button-label">Start American V8</span>
+          <span id="audio-button-hint" class="button-hint">Live GPS speed controls the RPM</span>
         </button>
+      </section>
+
+      <section class="engine-strip" aria-label="V8 engine sound status">
+        <div class="engine-identity">
+          <span id="engine-light" class="engine-light" aria-hidden="true"></span>
+          <div><small>Engine sound</small><strong>American cross-plane V8</strong></div>
+        </div>
+        <div class="rpm-readout"><strong id="engine-rpm">780</strong><span>RPM</span></div>
+        <div class="engine-mode"><small>Input</small><strong>Live GPS speed</strong></div>
       </section>
 
       <section class="dashboard" aria-label="Compatibility measurements">
