@@ -12,10 +12,19 @@
     accelerationLabel: byId("acceleration-label"), accelerationValue: byId("acceleration-value"),
     secureContext: byId("secure-context"), geolocationApi: byId("geolocation-api"),
     locationPermission: byId("location-permission"), audioApi: byId("audio-api"), apiSummary: byId("api-summary"),
-    browserDetails: byId("browser-details"), lastUpdate: byId("last-update")
+    browserDetails: byId("browser-details"), lastUpdate: byId("last-update"),
+    engineRpm: byId("engine-rpm"), engineLight: byId("engine-light")
   };
 
-  const state = { watchId: null, lastTimestamp: null, lastSpeedMps: null, intervals: [], updateCount: 0 };
+  const state = {
+    watchId: null,
+    lastTimestamp: null,
+    lastSpeedMps: null,
+    currentSpeedKph: 0,
+    intervals: [],
+    updateCount: 0,
+    engine: null
+  };
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 
   function setValue(element, value, tone) {
@@ -33,6 +42,29 @@
     if (value == null || !Number.isFinite(value)) return "Unavailable";
     const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
     return `${Math.round(value)}° ${directions[Math.round(value / 45) % 8]}`;
+  }
+
+  function speedToRpm(speedKph) {
+    const normalizedSpeed = Math.min(Math.max(speedKph, 0) / 180, 1);
+    return Math.round(780 + Math.pow(normalizedSpeed, 0.72) * 5020);
+  }
+
+  function updateEngine(speedKph) {
+    const rpm = speedToRpm(speedKph);
+    const normalizedSpeed = Math.min(Math.max(speedKph, 0) / 180, 1);
+    ui.engineRpm.textContent = String(rpm);
+
+    if (!state.engine) return;
+    const now = state.engine.context.currentTime;
+    const firingFrequency = (rpm / 60) * 4;
+    state.engine.exhaust.frequency.setTargetAtTime(firingFrequency, now, 0.32);
+    state.engine.rumble.frequency.setTargetAtTime(firingFrequency * 0.5, now, 0.38);
+    state.engine.body.frequency.setTargetAtTime(firingFrequency * 1.5, now, 0.28);
+    state.engine.filter.frequency.setTargetAtTime(680 + normalizedSpeed * 2350, now, 0.35);
+    state.engine.noiseFilter.frequency.setTargetAtTime(420 + normalizedSpeed * 1600, now, 0.35);
+    state.engine.noiseGain.gain.setTargetAtTime(0.025 + normalizedSpeed * 0.075, now, 0.4);
+    state.engine.master.gain.setTargetAtTime(0.36 + normalizedSpeed * 0.12, now, 0.4);
+    ui.audioButtonHint.textContent = `${rpm} RPM • ${speedKph.toFixed(1)} km/u`;
   }
 
   function updateAcceleration(speedMps, elapsedSeconds) {
@@ -74,9 +106,12 @@
     ui.updateStatus.textContent = "Receiving";
 
     if (speed != null && Number.isFinite(speed)) {
-      ui.speed.textContent = Math.max(0, speed * 3.6).toFixed(1);
+      const speedKph = Math.max(0, speed * 3.6);
+      state.currentSpeedKph = speedKph;
+      ui.speed.textContent = speedKph.toFixed(1);
       ui.speedStatus.textContent = "Live";
       updateAcceleration(speed, validElapsed ? elapsedMs / 1000 : 0);
+      updateEngine(speedKph);
     } else {
       ui.speed.textContent = "—";
       ui.speedStatus.textContent = "Not supplied";
@@ -133,7 +168,22 @@
     ui.gpsButton.querySelector(".button-label").textContent = "Stop GPS test";
   }
 
-  async function testAudio() {
+  function buildNoiseSource(context) {
+    const buffer = context.createBuffer(1, context.sampleRate * 2, context.sampleRate);
+    const samples = buffer.getChannelData(0);
+    let previous = 0;
+    for (let index = 0; index < samples.length; index += 1) {
+      const white = Math.random() * 2 - 1;
+      previous = previous * 0.86 + white * 0.14;
+      samples[index] = previous;
+    }
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    return source;
+  }
+
+  async function startEngine() {
     if (!AudioContextClass) {
       setValue(ui.audioApi, "Unsupported", "fail");
       ui.audioButtonHint.textContent = "Web Audio is unavailable";
@@ -142,24 +192,89 @@
     try {
       const context = new AudioContextClass();
       await context.resume();
-      const gain = context.createGain();
-      const oscillator = context.createOscillator();
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(220, context.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(440, context.currentTime + 0.45);
-      gain.gain.setValueAtTime(0.0001, context.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.22, context.currentTime + 0.04);
-      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.65);
-      oscillator.connect(gain).connect(context.destination);
-      oscillator.start();
-      oscillator.stop(context.currentTime + 0.7);
-      oscillator.addEventListener("ended", () => context.close());
-      setValue(ui.audioApi, "Working", "pass");
-      ui.audioButtonHint.textContent = "Tone played successfully";
+      const master = context.createGain();
+      const compressor = context.createDynamicsCompressor();
+      const filter = context.createBiquadFilter();
+      const exhaustGain = context.createGain();
+      const rumbleGain = context.createGain();
+      const bodyGain = context.createGain();
+      const noiseGain = context.createGain();
+      const noiseFilter = context.createBiquadFilter();
+      const exhaust = context.createOscillator();
+      const rumble = context.createOscillator();
+      const body = context.createOscillator();
+      const noise = buildNoiseSource(context);
+
+      const harmonics = new Float32Array([0, 1, 0.68, 0.46, 0.34, 0.24, 0.17, 0.12, 0.08]);
+      exhaust.setPeriodicWave(context.createPeriodicWave(new Float32Array(harmonics.length), harmonics));
+      rumble.type = "triangle";
+      body.type = "sawtooth";
+      filter.type = "lowpass";
+      filter.Q.value = 1.1;
+      noiseFilter.type = "lowpass";
+      noiseFilter.Q.value = 0.7;
+      exhaustGain.gain.value = 0.34;
+      rumbleGain.gain.value = 0.22;
+      bodyGain.gain.value = 0.055;
+      noiseGain.gain.value = 0.025;
+      master.gain.value = 0.0001;
+      compressor.threshold.value = -20;
+      compressor.knee.value = 12;
+      compressor.ratio.value = 5;
+      compressor.attack.value = 0.006;
+      compressor.release.value = 0.2;
+
+      exhaust.connect(exhaustGain).connect(filter);
+      rumble.connect(rumbleGain).connect(filter);
+      body.connect(bodyGain).connect(filter);
+      noise.connect(noiseFilter).connect(noiseGain).connect(filter);
+      filter.connect(compressor).connect(master).connect(context.destination);
+      exhaust.start();
+      rumble.start();
+      body.start();
+      noise.start();
+
+      state.engine = { context, master, filter, exhaust, rumble, body, noise, noiseFilter, noiseGain };
+      updateEngine(state.currentSpeedKph);
+      master.gain.setValueAtTime(0.0001, context.currentTime);
+      master.gain.exponentialRampToValueAtTime(0.36, context.currentTime + 0.7);
+      ui.audioButton.querySelector(".button-label").textContent = "Stop American V8";
+      ui.audioButton.classList.add("engine-running");
+      ui.engineLight.classList.add("running");
+      setValue(ui.audioApi, "V8 running", "pass");
     } catch (error) {
       setValue(ui.audioApi, "Blocked", "fail");
       ui.audioButtonHint.textContent = `Audio failed: ${error.name || "unknown error"}`;
     }
+  }
+
+  function stopEngine() {
+    if (!state.engine) return;
+    const engine = state.engine;
+    state.engine = null;
+    const now = engine.context.currentTime;
+    engine.master.gain.cancelScheduledValues(now);
+    engine.master.gain.setTargetAtTime(0.0001, now, 0.08);
+    window.setTimeout(() => {
+      [engine.exhaust, engine.rumble, engine.body, engine.noise].forEach((source) => {
+        try { source.stop(); } catch (_) { /* already stopped */ }
+      });
+      engine.context.close();
+    }, 450);
+    ui.audioButton.querySelector(".button-label").textContent = "Start American V8";
+    ui.audioButtonHint.textContent = "Live GPS speed controls the RPM";
+    ui.audioButton.classList.remove("engine-running");
+    ui.engineLight.classList.remove("running");
+    setValue(ui.audioApi, "Available", "pass");
+  }
+
+  function toggleEngine() {
+    if (state.engine) {
+      stopEngine();
+      return;
+    }
+    if (state.watchId === null) startGps();
+    startEngine();
   }
 
   async function inspectApis() {
@@ -188,6 +303,6 @@
   }
 
   ui.gpsButton.addEventListener("click", startGps);
-  ui.audioButton.addEventListener("click", testAudio);
+  ui.audioButton.addEventListener("click", toggleEngine);
   inspectApis();
 })();
