@@ -14,7 +14,9 @@
     locationPermission: byId("location-permission"), audioApi: byId("audio-api"), apiSummary: byId("api-summary"),
     browserDetails: byId("browser-details"), lastUpdate: byId("last-update"),
     engineRpm: byId("engine-rpm"), engineLight: byId("engine-light"), engineGear: byId("engine-gear"),
-    speedNeedle: byId("speed-needle"), rpmNeedle: byId("rpm-needle"), engineStateLabel: byId("engine-state-label")
+    speedNeedle: byId("speed-needle"), rpmNeedle: byId("rpm-needle"), engineStateLabel: byId("engine-state-label"),
+    revButton: byId("rev-button"), revLevel: byId("rev-level"), locationHelp: byId("location-help"),
+    locationHelpText: byId("location-help-text"), reloadButton: byId("reload-button")
   };
 
   const state = {
@@ -25,7 +27,12 @@
     currentAcceleration: 0,
     intervals: [],
     updateCount: 0,
-    engine: null
+    engine: null,
+    revHeld: false,
+    revAmount: 0,
+    manualRpm: null,
+    revFrame: null,
+    revLastTime: null
   };
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 
@@ -67,13 +74,15 @@
 
   function updateEngine(speedKph) {
     const drivetrain = drivetrainForSpeed(speedKph);
-    const { rpm, gear } = drivetrain;
-    const normalizedSpeed = Math.min(Math.max(speedKph, 0) / 180, 1);
-    const throttle = Math.min(Math.max(state.currentAcceleration / 2.5, 0), 1);
+    const isManualRev = state.manualRpm !== null;
+    const rpm = isManualRev ? state.manualRpm : drivetrain.rpm;
+    const gear = isManualRev ? "N" : drivetrain.gear;
+    const normalizedSpeed = isManualRev ? state.revAmount : Math.min(Math.max(speedKph, 0) / 180, 1);
+    const throttle = isManualRev ? state.revAmount : Math.min(Math.max(state.currentAcceleration / 2.5, 0), 1);
     ui.engineRpm.textContent = String(rpm);
     ui.engineGear.textContent = String(gear);
-    ui.speedNeedle.style.transform = `translateY(-50%) rotate(${-130 + Math.min(speedKph, 220) / 220 * 260}deg)`;
-    ui.rpmNeedle.style.transform = `translateY(-50%) rotate(${-130 + Math.min(rpm, 7000) / 7000 * 260}deg)`;
+    ui.speedNeedle.style.transform = `translateY(-50%) rotate(${140 + Math.min(speedKph, 220) / 220 * 260}deg)`;
+    ui.rpmNeedle.style.transform = `translateY(-50%) rotate(${140 + Math.min(rpm, 7000) / 7000 * 260}deg)`;
 
     if (!state.engine) return;
     const now = state.engine.context.currentTime;
@@ -97,7 +106,7 @@
     } else {
       state.engine.master.gain.setTargetAtTime(targetGain, now, 0.32);
     }
-    ui.audioButtonHint.textContent = `${rpm} RPM • Gear ${gear} • ${speedKph.toFixed(1)} km/u`;
+    ui.audioButtonHint.textContent = isManualRev ? `Manual REV • ${rpm} RPM` : `${rpm} RPM • Gear ${gear} • ${speedKph.toFixed(1)} km/u`;
   }
 
   function updateAcceleration(speedMps, elapsedSeconds) {
@@ -131,6 +140,7 @@
     const validElapsed = elapsedMs != null && elapsedMs > 0;
 
     state.updateCount += 1;
+    ui.locationHelp.hidden = true;
     ui.updateCount.textContent = String(state.updateCount);
     ui.latitude.textContent = latitude.toFixed(6);
     ui.longitude.textContent = longitude.toFixed(6);
@@ -167,6 +177,19 @@
     setOverall("GPS active", "active");
   }
 
+  function showLocationHelp() {
+    const isAppleMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isSecurePage = window.isSecureContext && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1");
+    if (!isSecurePage) {
+      ui.locationHelpText.textContent = "Location only works on the secure GitHub Pages URL. Open https://mr-bas-s.github.io/revora/ instead of a downloaded file.";
+    } else if (isAppleMobile) {
+      ui.locationHelpText.textContent = "On iPhone in Safari: open the Page Menu, choose More, open Website Settings, set Location to Allow, then reload this page.";
+    } else {
+      ui.locationHelpText.textContent = "Open this browser's site settings, set Location to Allow for mr-bas-s.github.io, then reload this page.";
+    }
+    ui.locationHelp.hidden = false;
+  }
+
   function handlePositionError(error) {
     const messages = {
       1: "Location permission denied",
@@ -177,12 +200,24 @@
     ui.positionStatus.textContent = message;
     ui.updateStatus.textContent = "Stopped";
     setOverall(message, "error");
-    if (error.code === 1) setValue(ui.locationPermission, "Denied", "fail");
+    if (error.code === 1) {
+      setValue(ui.locationPermission, "Denied", "fail");
+      if (state.watchId !== null) navigator.geolocation.clearWatch(state.watchId);
+      state.watchId = null;
+      ui.gpsButton.querySelector(".button-label").textContent = "Start GPS";
+      showLocationHelp();
+    }
   }
 
   function startGps() {
     if (!("geolocation" in navigator)) {
       setOverall("Geolocation unsupported", "error");
+      return;
+    }
+    const isSecurePage = window.isSecureContext && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1");
+    if (!isSecurePage) {
+      setOverall("Secure URL required", "error");
+      showLocationHelp();
       return;
     }
     if (state.watchId !== null) {
@@ -193,13 +228,14 @@
       return;
     }
     setOverall("Requesting location…", "idle");
+    ui.locationHelp.hidden = true;
     ui.positionStatus.textContent = "Requesting";
     state.watchId = navigator.geolocation.watchPosition(handlePosition, handlePositionError, {
       enableHighAccuracy: true,
       maximumAge: 0,
       timeout: 15000
     });
-    ui.gpsButton.querySelector(".button-label").textContent = "Stop GPS test";
+    ui.gpsButton.querySelector(".button-label").textContent = "Stop GPS";
   }
 
   function buildNoiseSource(context) {
@@ -314,6 +350,15 @@
 
   function stopEngine() {
     if (!state.engine) return;
+    state.revHeld = false;
+    state.revAmount = 0;
+    state.manualRpm = null;
+    ui.revButton.classList.remove("active");
+    ui.revButton.setAttribute("aria-pressed", "false");
+    ui.revLevel.style.transform = "scaleX(0)";
+    if (state.revFrame !== null) cancelAnimationFrame(state.revFrame);
+    state.revFrame = null;
+    state.revLastTime = null;
     const engine = state.engine;
     state.engine = null;
     const now = engine.context.currentTime;
@@ -342,6 +387,59 @@
     startEngine();
   }
 
+  function animateManualRev(timestamp) {
+    const elapsed = state.revLastTime === null ? 16 : Math.min(timestamp - state.revLastTime, 60);
+    state.revLastTime = timestamp;
+    const direction = state.revHeld ? 1 : -1;
+    const rampTime = state.revHeld ? 850 : 1050;
+    state.revAmount = Math.min(Math.max(state.revAmount + direction * elapsed / rampTime, 0), 1);
+    ui.revLevel.style.transform = `scaleX(${state.revAmount})`;
+
+    if (state.revAmount > 0.001) {
+      state.manualRpm = Math.round(720 + Math.pow(state.revAmount, 0.68) * 4380);
+      ui.engineStateLabel.textContent = state.revHeld ? "Manual throttle" : "RPM falling";
+      updateEngine(state.currentSpeedKph);
+    } else {
+      state.revAmount = 0;
+      state.manualRpm = null;
+      ui.revLevel.style.transform = "scaleX(0)";
+      ui.engineStateLabel.textContent = state.engine ? "V8 running" : "Standby";
+      updateEngine(state.currentSpeedKph);
+    }
+
+    if (state.revHeld || state.revAmount > 0) {
+      state.revFrame = requestAnimationFrame(animateManualRev);
+    } else {
+      state.revFrame = null;
+      state.revLastTime = null;
+    }
+  }
+
+  async function beginManualRev(event) {
+    event.preventDefault();
+    if (state.revHeld) return;
+    state.revHeld = true;
+    ui.revButton.classList.add("active");
+    ui.revButton.setAttribute("aria-pressed", "true");
+    if (event.pointerId != null && ui.revButton.setPointerCapture) {
+      try { ui.revButton.setPointerCapture(event.pointerId); } catch (_) { /* pointer already released */ }
+    }
+    if (!state.engine) await startEngine();
+    if (!state.engine) {
+      endManualRev();
+      return;
+    }
+    if (state.revFrame === null) state.revFrame = requestAnimationFrame(animateManualRev);
+  }
+
+  function endManualRev(event) {
+    if (event) event.preventDefault();
+    state.revHeld = false;
+    ui.revButton.classList.remove("active");
+    ui.revButton.setAttribute("aria-pressed", "false");
+    if (state.revAmount > 0 && state.revFrame === null) state.revFrame = requestAnimationFrame(animateManualRev);
+  }
+
   async function inspectApis() {
     let supported = 0;
     setValue(ui.secureContext, window.isSecureContext ? "Yes" : "No", window.isSecureContext ? "pass" : "fail");
@@ -354,7 +452,11 @@
     if (navigator.permissions && navigator.permissions.query) {
       try {
         const permission = await navigator.permissions.query({ name: "geolocation" });
-        const paintPermission = () => setValue(ui.locationPermission, permission.state, permission.state === "denied" ? "fail" : permission.state === "granted" ? "pass" : "warn");
+        const paintPermission = () => {
+          setValue(ui.locationPermission, permission.state, permission.state === "denied" ? "fail" : permission.state === "granted" ? "pass" : "warn");
+          if (permission.state === "denied") showLocationHelp();
+          if (permission.state === "granted") ui.locationHelp.hidden = true;
+        };
         paintPermission();
         permission.addEventListener("change", paintPermission);
       } catch (_) {
@@ -369,6 +471,18 @@
 
   ui.gpsButton.addEventListener("click", startGps);
   ui.audioButton.addEventListener("click", toggleEngine);
+  ui.revButton.addEventListener("pointerdown", beginManualRev);
+  ui.revButton.addEventListener("pointerup", endManualRev);
+  ui.revButton.addEventListener("pointercancel", endManualRev);
+  ui.revButton.addEventListener("contextmenu", (event) => event.preventDefault());
+  ui.revButton.addEventListener("keydown", (event) => {
+    if ((event.key === " " || event.key === "Enter") && !event.repeat) beginManualRev(event);
+  });
+  ui.revButton.addEventListener("keyup", (event) => {
+    if (event.key === " " || event.key === "Enter") endManualRev(event);
+  });
+  ui.reloadButton.addEventListener("click", () => location.reload());
+  document.addEventListener("visibilitychange", () => { if (document.hidden) endManualRev(); });
   updateEngine(0);
   inspectApis();
 })();
