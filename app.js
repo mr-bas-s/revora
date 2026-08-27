@@ -13,7 +13,7 @@
     secureContext: byId("secure-context"), geolocationApi: byId("geolocation-api"),
     locationPermission: byId("location-permission"), audioApi: byId("audio-api"), apiSummary: byId("api-summary"),
     browserDetails: byId("browser-details"), lastUpdate: byId("last-update"),
-    engineRpm: byId("engine-rpm"), engineLight: byId("engine-light")
+    engineRpm: byId("engine-rpm"), engineLight: byId("engine-light"), engineGear: byId("engine-gear")
   };
 
   const state = {
@@ -21,6 +21,7 @@
     lastTimestamp: null,
     lastSpeedMps: null,
     currentSpeedKph: 0,
+    currentAcceleration: 0,
     intervals: [],
     updateCount: 0,
     engine: null
@@ -44,27 +45,56 @@
     return `${Math.round(value)}° ${directions[Math.round(value / 45) % 8]}`;
   }
 
-  function speedToRpm(speedKph) {
-    const normalizedSpeed = Math.min(Math.max(speedKph, 0) / 180, 1);
-    return Math.round(780 + Math.pow(normalizedSpeed, 0.72) * 5020);
+  function drivetrainForSpeed(speedKph) {
+    const ranges = [
+      [0, 22],
+      [22, 42],
+      [42, 68],
+      [68, 98],
+      [98, 135],
+      [135, 190]
+    ];
+    if (speedKph < 1.5) return { gear: 1, rpm: 720 };
+    let gearIndex = ranges.findIndex((range) => speedKph < range[1]);
+    if (gearIndex === -1) gearIndex = ranges.length - 1;
+    const [minimum, maximum] = ranges[gearIndex];
+    const progress = Math.min(Math.max((speedKph - minimum) / (maximum - minimum), 0), 1);
+    const baseRpm = gearIndex === 0 ? 850 : 1250;
+    const rpmRange = gearIndex === 0 ? 3850 : 3350;
+    return { gear: gearIndex + 1, rpm: Math.round(baseRpm + Math.pow(progress, 0.68) * rpmRange) };
   }
 
   function updateEngine(speedKph) {
-    const rpm = speedToRpm(speedKph);
+    const drivetrain = drivetrainForSpeed(speedKph);
+    const { rpm, gear } = drivetrain;
     const normalizedSpeed = Math.min(Math.max(speedKph, 0) / 180, 1);
+    const throttle = Math.min(Math.max(state.currentAcceleration / 2.5, 0), 1);
     ui.engineRpm.textContent = String(rpm);
+    ui.engineGear.textContent = `Gear ${gear}`;
 
     if (!state.engine) return;
     const now = state.engine.context.currentTime;
     const firingFrequency = (rpm / 60) * 4;
-    state.engine.exhaust.frequency.setTargetAtTime(firingFrequency, now, 0.32);
+    state.engine.exhaustA.frequency.setTargetAtTime(firingFrequency, now, 0.2);
+    state.engine.exhaustB.frequency.setTargetAtTime(firingFrequency * 0.997, now, 0.22);
     state.engine.rumble.frequency.setTargetAtTime(firingFrequency * 0.5, now, 0.38);
-    state.engine.body.frequency.setTargetAtTime(firingFrequency * 1.5, now, 0.28);
-    state.engine.filter.frequency.setTargetAtTime(680 + normalizedSpeed * 2350, now, 0.35);
-    state.engine.noiseFilter.frequency.setTargetAtTime(420 + normalizedSpeed * 1600, now, 0.35);
-    state.engine.noiseGain.gain.setTargetAtTime(0.025 + normalizedSpeed * 0.075, now, 0.4);
-    state.engine.master.gain.setTargetAtTime(0.36 + normalizedSpeed * 0.12, now, 0.4);
-    ui.audioButtonHint.textContent = `${rpm} RPM • ${speedKph.toFixed(1)} km/u`;
+    state.engine.body.frequency.setTargetAtTime(Math.max(38, firingFrequency * 0.75), now, 0.3);
+    state.engine.pulse.frequency.setTargetAtTime(firingFrequency * 0.5, now, 0.2);
+    state.engine.filter.frequency.setTargetAtTime(560 + normalizedSpeed * 1850 + throttle * 450, now, 0.28);
+    state.engine.noiseFilter.frequency.setTargetAtTime(330 + normalizedSpeed * 1450 + throttle * 300, now, 0.3);
+    state.engine.noiseGain.gain.setTargetAtTime(0.042 + normalizedSpeed * 0.05 + throttle * 0.025, now, 0.25);
+
+    const targetGain = 0.42 + normalizedSpeed * 0.08 + throttle * 0.05;
+    if (state.engine.gear !== gear) {
+      state.engine.master.gain.cancelScheduledValues(now);
+      state.engine.master.gain.setValueAtTime(Math.max(state.engine.master.gain.value, 0.0001), now);
+      state.engine.master.gain.linearRampToValueAtTime(0.16, now + 0.07);
+      state.engine.master.gain.exponentialRampToValueAtTime(targetGain, now + 0.3);
+      state.engine.gear = gear;
+    } else {
+      state.engine.master.gain.setTargetAtTime(targetGain, now, 0.32);
+    }
+    ui.audioButtonHint.textContent = `${rpm} RPM • Gear ${gear} • ${speedKph.toFixed(1)} km/u`;
   }
 
   function updateAcceleration(speedMps, elapsedSeconds) {
@@ -74,6 +104,7 @@
       return;
     }
     const acceleration = (speedMps - state.lastSpeedMps) / elapsedSeconds;
+    state.currentAcceleration = acceleration;
     ui.accelerationValue.textContent = `${acceleration >= 0 ? "+" : ""}${acceleration.toFixed(2)} m/s²`;
     ui.accelerationArrow.className = "acceleration-arrow";
     if (acceleration > 0.15) {
@@ -107,11 +138,11 @@
 
     if (speed != null && Number.isFinite(speed)) {
       const speedKph = Math.max(0, speed * 3.6);
-      state.currentSpeedKph = speedKph;
+      state.currentSpeedKph = state.updateCount <= 1 ? speedKph : state.currentSpeedKph * 0.62 + speedKph * 0.38;
       ui.speed.textContent = speedKph.toFixed(1);
       ui.speedStatus.textContent = "Live";
       updateAcceleration(speed, validElapsed ? elapsedMs / 1000 : 0);
-      updateEngine(speedKph);
+      updateEngine(state.currentSpeedKph);
     } else {
       ui.speed.textContent = "—";
       ui.speedStatus.textContent = "Not supplied";
@@ -183,6 +214,17 @@
     return source;
   }
 
+  function makeDriveCurve(amount) {
+    const samples = 2048;
+    const curve = new Float32Array(samples);
+    const degrees = Math.PI / 180;
+    for (let index = 0; index < samples; index += 1) {
+      const input = (index * 2) / samples - 1;
+      curve[index] = ((3 + amount) * input * 20 * degrees) / (Math.PI + amount * Math.abs(input));
+    }
+    return curve;
+  }
+
   async function startEngine() {
     if (!AudioContextClass) {
       setValue(ui.audioApi, "Unsupported", "fail");
@@ -196,48 +238,66 @@
       const compressor = context.createDynamicsCompressor();
       const filter = context.createBiquadFilter();
       const exhaustGain = context.createGain();
+      const exhaustBGain = context.createGain();
       const rumbleGain = context.createGain();
       const bodyGain = context.createGain();
       const noiseGain = context.createGain();
       const noiseFilter = context.createBiquadFilter();
-      const exhaust = context.createOscillator();
+      const drive = context.createWaveShaper();
+      const exhaustA = context.createOscillator();
+      const exhaustB = context.createOscillator();
       const rumble = context.createOscillator();
       const body = context.createOscillator();
+      const pulse = context.createOscillator();
+      const pulseDepth = context.createGain();
       const noise = buildNoiseSource(context);
 
-      const harmonics = new Float32Array([0, 1, 0.68, 0.46, 0.34, 0.24, 0.17, 0.12, 0.08]);
-      exhaust.setPeriodicWave(context.createPeriodicWave(new Float32Array(harmonics.length), harmonics));
+      const leftBank = new Float32Array([0, 1, 0.72, 0.48, 0.34, 0.23, 0.16, 0.11, 0.07]);
+      const rightBank = new Float32Array([0, 1, 0.52, 0.61, 0.25, 0.29, 0.12, 0.15, 0.06]);
+      exhaustA.setPeriodicWave(context.createPeriodicWave(new Float32Array(leftBank.length), leftBank));
+      exhaustB.setPeriodicWave(context.createPeriodicWave(new Float32Array(rightBank.length), rightBank));
       rumble.type = "triangle";
-      body.type = "sawtooth";
+      body.type = "sine";
+      pulse.type = "square";
       filter.type = "lowpass";
-      filter.Q.value = 1.1;
-      noiseFilter.type = "lowpass";
-      noiseFilter.Q.value = 0.7;
-      exhaustGain.gain.value = 0.34;
-      rumbleGain.gain.value = 0.22;
-      bodyGain.gain.value = 0.055;
-      noiseGain.gain.value = 0.025;
+      filter.Q.value = 1.35;
+      noiseFilter.type = "bandpass";
+      noiseFilter.Q.value = 0.85;
+      drive.curve = makeDriveCurve(32);
+      drive.oversample = "2x";
+      exhaustGain.gain.value = 0.24;
+      exhaustBGain.gain.value = 0.17;
+      rumbleGain.gain.value = 0.24;
+      bodyGain.gain.value = 0.1;
+      noiseGain.gain.value = 0.042;
+      pulseDepth.gain.value = 0.026;
       master.gain.value = 0.0001;
-      compressor.threshold.value = -20;
-      compressor.knee.value = 12;
-      compressor.ratio.value = 5;
-      compressor.attack.value = 0.006;
-      compressor.release.value = 0.2;
+      compressor.threshold.value = -22;
+      compressor.knee.value = 10;
+      compressor.ratio.value = 6;
+      compressor.attack.value = 0.004;
+      compressor.release.value = 0.16;
 
-      exhaust.connect(exhaustGain).connect(filter);
-      rumble.connect(rumbleGain).connect(filter);
-      body.connect(bodyGain).connect(filter);
+      exhaustA.connect(exhaustGain).connect(drive);
+      exhaustB.connect(exhaustBGain).connect(drive);
+      rumble.connect(rumbleGain).connect(drive);
+      body.connect(bodyGain).connect(drive);
+      drive.connect(filter);
       noise.connect(noiseFilter).connect(noiseGain).connect(filter);
+      pulse.connect(pulseDepth).connect(noiseGain.gain);
       filter.connect(compressor).connect(master).connect(context.destination);
-      exhaust.start();
+      exhaustA.start();
+      exhaustB.start();
       rumble.start();
       body.start();
+      pulse.start();
       noise.start();
 
-      state.engine = { context, master, filter, exhaust, rumble, body, noise, noiseFilter, noiseGain };
+      const startingGear = drivetrainForSpeed(state.currentSpeedKph).gear;
+      state.engine = { context, master, filter, exhaustA, exhaustB, rumble, body, pulse, noise, noiseFilter, noiseGain, gear: startingGear };
       updateEngine(state.currentSpeedKph);
       master.gain.setValueAtTime(0.0001, context.currentTime);
-      master.gain.exponentialRampToValueAtTime(0.36, context.currentTime + 0.7);
+      master.gain.exponentialRampToValueAtTime(0.42, context.currentTime + 0.85);
       ui.audioButton.querySelector(".button-label").textContent = "Stop American V8";
       ui.audioButton.classList.add("engine-running");
       ui.engineLight.classList.add("running");
@@ -256,7 +316,7 @@
     engine.master.gain.cancelScheduledValues(now);
     engine.master.gain.setTargetAtTime(0.0001, now, 0.08);
     window.setTimeout(() => {
-      [engine.exhaust, engine.rumble, engine.body, engine.noise].forEach((source) => {
+      [engine.exhaustA, engine.exhaustB, engine.rumble, engine.body, engine.pulse, engine.noise].forEach((source) => {
         try { source.stop(); } catch (_) { /* already stopped */ }
       });
       engine.context.close();
