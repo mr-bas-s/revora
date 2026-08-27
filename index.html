@@ -4,14 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#03070d" />
-    <meta name="description" content="Revora EV Engine turns live GPS speed into an interactive American V8 sound with a virtual six-speed gearbox." />
+    <meta name="description" content="Revora EV Engine turns live GPS speed into a realtime synthesized engine experience with virtual shifting and sound tuning." />
     <meta property="og:title" content="Revora EV Engine" />
     <meta property="og:description" content="Give your EV a voice." />
     <meta property="og:image" content="https://mr-bas-s.github.io/revora/og.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Revora EV Engine" />
-    <meta name="twitter:description" content="Give your EV a voice." />
-    <meta name="twitter:image" content="https://mr-bas-s.github.io/revora/og.jpg" />
     <title>Revora EV Engine</title>
     <link rel="stylesheet" href="styles.css" />
     <script src="app.js" defer></script>
@@ -19,46 +16,59 @@
   <body>
     <main class="shell">
       <header class="topbar">
-        <div class="brand"><div><strong>REVORA</strong><span>EV ENGINE</span></div></div>
-        <div class="topbar-copy">GPS-linked virtual powertrain</div>
-        <div id="overall-status" class="status-pill status-idle" role="status"><span class="status-dot" aria-hidden="true"></span><span>Ready</span></div>
+        <div class="brand"><strong>REVORA</strong><span>EV ENGINE</span></div>
+        <div class="system-chips" aria-label="System status">
+          <span id="browser-chip">Browser ready</span><span id="audio-chip">Audio idle</span><span id="gps-chip">GPS idle</span>
+        </div>
+        <div id="overall-status" class="status-pill status-idle" role="status"><i aria-hidden="true"></i><span>Ready</span></div>
       </header>
 
       <section class="instrument-cluster" aria-label="Revora EV Engine instrument cluster">
-        <article class="gauge-card">
+        <article id="speed-pod" class="gauge-card gauge-pod speed-pod">
+          <div class="pod-leds" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
           <div class="gauge gauge-speed" aria-label="GPS speedometer">
+            <div class="gauge-aura" aria-hidden="true"></div>
+            <div class="gauge-progress" aria-hidden="true"></div>
             <div class="gauge-ring" aria-hidden="true"></div>
             <span class="scale scale-a">0</span><span class="scale scale-b">60</span><span class="scale scale-c">120</span><span class="scale scale-d">180</span><span class="scale scale-e">220</span>
             <div id="speed-needle" class="needle" aria-hidden="true"><span></span></div><div class="needle-hub" aria-hidden="true"></div>
             <div class="gauge-readout"><strong id="speed">0.0</strong><span>km/u</span></div>
           </div>
-          <div class="gauge-caption"><span>GPS speed</span><strong id="speed-status">Waiting</strong></div>
+          <div class="gauge-caption"><span id="speed-source">GPS speed</span><strong id="speed-status">Waiting</strong></div>
         </article>
 
-        <section class="center-console" aria-label="Engine controls">
-          <div class="engine-badge"><span id="engine-light" class="engine-light" aria-hidden="true"></span><span>AMERICAN V8</span></div>
-          <div class="gear-display"><small>GEAR</small><strong id="engine-gear">1</strong><span>6-SPEED AUTO</span></div>
+        <section class="center-console" aria-label="Drive controls">
+          <div id="shift-lights" class="shift-lights" aria-label="Shift lights"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="engine-badge"><span id="engine-light" class="engine-light" aria-hidden="true"></span><span id="profile-label">AMERICAN V8</span></div>
+          <div class="gear-display"><small>GEAR</small><strong id="engine-gear">1</strong><span id="shift-state">6-SPEED AUTO</span></div>
           <div class="engine-state"><span>Engine sound</span><strong id="engine-state-label">Standby</strong></div>
-          <div class="engine-controls">
-            <button id="rev-button" class="rev-button" type="button" aria-label="Hold to rev the virtual engine">
-              <strong>REV</strong><span>HOLD</span><i aria-hidden="true"><b id="rev-level"></b></i>
-            </button>
-            <div class="button-stack">
-              <button id="audio-button" class="control-button engine-button" type="button"><span class="button-label">Start EV Engine</span><span id="audio-button-hint" class="button-hint">GPS controls RPM and shifting</span></button>
-              <button id="gps-button" class="control-button gps-button" type="button"><span class="button-label">Start GPS</span><span class="button-hint">Location stays on this device</span></button>
-            </div>
+          <button id="rev-button" class="rev-button" type="button" aria-label="Tap or hold to rev the virtual engine" aria-pressed="false">
+            <strong>REV</strong><span>TAP TO BLIP · HOLD TO REV</span><i aria-hidden="true"><b id="rev-level"></b></i>
+          </button>
+          <div class="drive-buttons">
+            <button id="test-button" class="control-button test-button" type="button"><span class="button-label">Test mode</span><span class="button-hint">Manual speed slider</span></button>
+            <button id="audio-button" class="control-button engine-button" type="button"><span class="button-label">Start engine</span><span id="audio-button-hint" class="button-hint">GPS controls RPM and shifting</span></button>
+            <button id="gps-button" class="control-button gps-button" type="button"><span class="button-label">Start GPS</span><span class="button-hint">Location stays on this device</span></button>
           </div>
         </section>
 
-        <article class="gauge-card">
+        <article id="rpm-pod" class="gauge-card gauge-pod rpm-pod">
+          <div class="pod-leds" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
           <div class="gauge gauge-rpm" aria-label="Virtual engine tachometer">
+            <div class="gauge-aura" aria-hidden="true"></div>
+            <div class="gauge-progress" aria-hidden="true"></div>
             <div class="gauge-ring" aria-hidden="true"></div>
             <span class="scale scale-a">0</span><span class="scale scale-b">2</span><span class="scale scale-c">4</span><span class="scale scale-d">6</span><span class="scale scale-e">7</span>
             <div id="rpm-needle" class="needle" aria-hidden="true"><span></span></div><div class="needle-hub" aria-hidden="true"></div>
-            <div class="gauge-readout"><strong id="engine-rpm">720</strong><span>RPM</span></div>
+            <div class="gauge-readout"><strong id="engine-rpm">800</strong><span>RPM</span></div>
           </div>
-          <div class="gauge-caption"><span>Virtual tachometer</span><strong>×1000</strong></div>
+          <div class="gauge-caption"><span>Virtual tachometer</span><strong id="load-label">Load 0%</strong></div>
         </article>
+      </section>
+
+      <section id="manual-panel" class="manual-panel" aria-label="Manual speed test" hidden>
+        <label for="manual-speed"><span>Manual speed</span><strong id="manual-speed-value">0 km/u</strong></label>
+        <input id="manual-speed" type="range" min="0" max="220" step="1" value="0" />
       </section>
 
       <aside id="location-help" class="location-help" role="alert" hidden>
@@ -66,19 +76,44 @@
         <button id="reload-button" type="button">Reload &amp; retry</button>
       </aside>
 
-      <section class="telemetry" aria-label="Live telemetry">
-        <article class="telemetry-card">
-          <div class="telemetry-heading"><span>Position</span><strong id="position-status">Waiting</strong></div>
-          <dl class="compact-metrics"><div><dt>Latitude</dt><dd id="latitude">—</dd></div><div><dt>Longitude</dt><dd id="longitude">—</dd></div><div><dt>Accuracy</dt><dd id="accuracy">—</dd></div><div><dt>Heading</dt><dd id="heading">—</dd></div></dl>
+      <section class="workbench">
+        <article class="telemetry-panel">
+          <div class="panel-heading"><div><small>LIVE DATA</small><h2>Telemetry stream</h2></div><span id="telemetry-source">GPS</span></div>
+          <canvas id="telemetry-canvas" width="900" height="220" aria-label="Speed, RPM and load history"></canvas>
+          <dl class="stream-metrics">
+            <div><dt>Raw speed</dt><dd id="raw-speed">—</dd></div><div><dt>Smoothed</dt><dd id="smooth-speed">0.0 km/u</dd></div>
+            <div><dt>GPS rate</dt><dd id="frequency">—</dd></div><div><dt>Fix age</dt><dd id="fix-age">—</dd></div>
+            <div><dt>Accuracy</dt><dd id="accuracy">—</dd></div><div><dt>Load</dt><dd id="load-value">0%</dd></div>
+          </dl>
         </article>
-        <article class="telemetry-card">
-          <div class="telemetry-heading"><span>GPS updates</span><strong id="update-status">Waiting</strong></div>
-          <dl class="compact-metrics"><div><dt>Latest</dt><dd id="interval">—</dd></div><div><dt>Average</dt><dd id="average-interval">—</dd></div><div><dt>Frequency</dt><dd id="frequency">—</dd></div><div><dt>Updates</dt><dd id="update-count">0</dd></div></dl>
-        </article>
-        <article class="telemetry-card acceleration-card">
-          <div class="telemetry-heading"><span>Acceleration</span><strong>GPS-derived</strong></div>
-          <div class="acceleration-row"><span id="acceleration-arrow" class="acceleration-arrow" aria-hidden="true">●</span><div><strong id="acceleration-label">Waiting</strong><small id="acceleration-value">— m/s²</small></div></div>
-        </article>
+
+        <aside class="sound-panel">
+          <div class="panel-heading"><div><small>SYNTHESIZED PROFILES</small><h2>Engine sound</h2></div><span id="sound-count">8 sounds</span></div>
+          <div id="profile-grid" class="profile-grid" role="list" aria-label="Engine sound profiles"></div>
+          <div class="mix-controls">
+            <label for="master-volume"><span>Master volume</span><strong id="master-volume-value">55%</strong></label>
+            <input id="master-volume" type="range" min="0" max="100" step="1" value="55" />
+            <label for="bass-shelf"><span>Bass shelf @ 120 Hz</span><strong id="bass-shelf-value">+4 dB</strong></label>
+            <input id="bass-shelf" type="range" min="-12" max="18" step="1" value="4" />
+          </div>
+          <details class="tuning">
+            <summary>Advanced drivetrain tuning</summary>
+            <div class="tuning-grid">
+              <label for="speed-smoothing"><span>Speed smoothing</span><strong id="speed-smoothing-value">650 ms</strong></label><input id="speed-smoothing" type="range" min="100" max="2000" step="50" value="650" />
+              <label for="needle-speed"><span>Needle response</span><strong id="needle-speed-value">180 ms</strong></label><input id="needle-speed" type="range" min="60" max="600" step="20" value="180" />
+              <label for="accel-sensitivity"><span>Full load at</span><strong id="accel-sensitivity-value">2.5 m/s²</strong></label><input id="accel-sensitivity" type="range" min="10" max="50" step="1" value="25" />
+              <label for="shift-rpm"><span>Shift RPM</span><strong id="shift-rpm-value">4800</strong></label><input id="shift-rpm" type="range" min="3200" max="6500" step="100" value="4800" />
+              <label for="idle-rpm"><span>Idle RPM</span><strong id="idle-rpm-value">800</strong></label><input id="idle-rpm" type="range" min="600" max="1400" step="50" value="800" />
+            </div>
+          </details>
+          <button id="reset-button" class="reset-button" type="button">Reset tuning</button>
+        </aside>
+      </section>
+
+      <section class="telemetry-cards" aria-label="GPS diagnostics">
+        <article><span>Position</span><strong id="position-status">Waiting</strong><small id="coordinates">Latitude / longitude —</small></article>
+        <article><span>GPS updates</span><strong id="update-status">Waiting</strong><small><b id="update-count">0</b> updates · <b id="interval">—</b> latest</small></article>
+        <article><span>Acceleration</span><strong id="acceleration-label">Waiting</strong><small id="acceleration-value">— m/s²</small></article>
       </section>
 
       <details class="diagnostics">
@@ -86,7 +121,9 @@
         <div class="api-grid"><div><span>Secure context</span><strong id="secure-context">—</strong></div><div><span>Geolocation API</span><strong id="geolocation-api">—</strong></div><div><span>Location permission</span><strong id="location-permission">—</strong></div><div><span>Web Audio API</span><strong id="audio-api">—</strong></div></div>
         <p id="browser-details" class="browser-details"></p>
       </details>
-      <footer><span>Revora EV Engine</span><span id="last-update">No GPS fix received</span></footer>
+
+      <section class="event-panel"><div class="panel-heading"><div><small>SYSTEM</small><h2>Event log</h2></div><button id="clear-log" type="button">Clear</button></div><ol id="event-log" aria-live="polite"></ol></section>
+      <footer><span>Revora EV Engine · realtime Web Audio synthesis</span><span id="last-update">No GPS fix received</span></footer>
     </main>
   </body>
 </html>
