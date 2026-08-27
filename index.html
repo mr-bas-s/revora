@@ -3,106 +3,78 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#070b10" />
-    <meta
-      name="description"
-      content="Revora GPS-linked American V8 engine sound test for the Tesla browser."
-    />
-    <title>Revora — GPS V8 Sound Test</title>
+    <meta name="theme-color" content="#03070d" />
+    <meta name="description" content="Revora EV Engine turns live GPS speed into an interactive American V8 sound with a virtual six-speed gearbox." />
+    <meta property="og:title" content="Revora EV Engine" />
+    <meta property="og:description" content="Give your EV a voice." />
+    <meta property="og:image" content="https://mr-bas-s.github.io/revora/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Revora EV Engine" />
+    <meta name="twitter:description" content="Give your EV a voice." />
+    <meta name="twitter:image" content="https://mr-bas-s.github.io/revora/og.png" />
+    <title>Revora EV Engine</title>
     <link rel="stylesheet" href="styles.css" />
     <script src="app.js" defer></script>
   </head>
   <body>
     <main class="shell">
-      <header class="hero">
-        <div>
-          <p class="eyebrow">REVORA</p>
-          <h1>GPS-linked<br />American V8</h1>
-          <p class="intro">A deep V8 rumble that accelerates with your live GPS speed. No data leaves this device.</p>
-        </div>
-        <div id="overall-status" class="status-pill status-idle" role="status">
-          <span class="status-dot" aria-hidden="true"></span>
-          <span>Ready to test</span>
-        </div>
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">R</span><div><strong>REVORA</strong><span>EV ENGINE</span></div></div>
+        <div class="topbar-copy">GPS-linked virtual powertrain</div>
+        <div id="overall-status" class="status-pill status-idle" role="status"><span class="status-dot" aria-hidden="true"></span><span>Ready</span></div>
       </header>
 
-      <section class="controls" aria-label="Test controls">
-        <button id="gps-button" class="primary-button" type="button">
-          <span class="button-label">Start GPS test</span>
-          <span class="button-hint">Tesla may ask for location access</span>
-        </button>
-        <button id="audio-button" class="secondary-button engine-button" type="button">
-          <span class="button-label">Start American V8</span>
-          <span id="audio-button-hint" class="button-hint">Live GPS speed controls the RPM</span>
-        </button>
-      </section>
-
-      <section class="engine-strip" aria-label="V8 engine sound status">
-        <div class="engine-identity">
-          <span id="engine-light" class="engine-light" aria-hidden="true"></span>
-          <div><small>Engine sound</small><strong>American cross-plane V8</strong></div>
-        </div>
-        <div class="rpm-readout"><strong id="engine-rpm">780</strong><span>RPM</span></div>
-        <div class="engine-mode"><small>Virtual 6-speed</small><strong id="engine-gear">Gear 1</strong></div>
-      </section>
-
-      <section class="dashboard" aria-label="Compatibility measurements">
-        <article class="card card-speed">
-          <div class="card-heading">
-            <span>GPS speed</span>
-            <span id="speed-status" class="mini-status">Waiting</span>
+      <section class="instrument-cluster" aria-label="Revora EV Engine instrument cluster">
+        <article class="gauge-card">
+          <div class="gauge gauge-speed" aria-label="GPS speedometer">
+            <div class="gauge-ring" aria-hidden="true"></div>
+            <span class="scale scale-a">0</span><span class="scale scale-b">60</span><span class="scale scale-c">120</span><span class="scale scale-d">180</span><span class="scale scale-e">220</span>
+            <div id="speed-needle" class="needle" aria-hidden="true"><span></span></div><div class="needle-hub" aria-hidden="true"></div>
+            <div class="gauge-readout"><strong id="speed">0.0</strong><span>km/u</span></div>
           </div>
-          <div class="speed-value"><span id="speed">—</span><small>km/u</small></div>
+          <div class="gauge-caption"><span>GPS speed</span><strong id="speed-status">Waiting</strong></div>
         </article>
 
-        <article class="card">
-          <div class="card-heading"><span>Position</span><span id="position-status" class="mini-status">Waiting</span></div>
-          <dl class="metrics">
-            <div><dt>Latitude</dt><dd id="latitude">—</dd></div>
-            <div><dt>Longitude</dt><dd id="longitude">—</dd></div>
-            <div><dt>Accuracy</dt><dd id="accuracy">—</dd></div>
-            <div><dt>Heading</dt><dd id="heading">—</dd></div>
-          </dl>
-        </article>
+        <section class="center-console" aria-label="Engine controls">
+          <div class="engine-badge"><span id="engine-light" class="engine-light" aria-hidden="true"></span><span>AMERICAN V8</span></div>
+          <div class="gear-display"><small>GEAR</small><strong id="engine-gear">1</strong><span>6-SPEED AUTO</span></div>
+          <div class="engine-state"><span>Engine sound</span><strong id="engine-state-label">Standby</strong></div>
+          <button id="audio-button" class="control-button engine-button" type="button"><span class="button-label">Start EV Engine</span><span id="audio-button-hint" class="button-hint">GPS speed controls RPM and shifting</span></button>
+          <button id="gps-button" class="control-button gps-button" type="button"><span class="button-label">Start GPS</span><span class="button-hint">Live location stays on this device</span></button>
+        </section>
 
-        <article class="card">
-          <div class="card-heading"><span>GPS updates</span><span id="update-status" class="mini-status">Waiting</span></div>
-          <dl class="metrics">
-            <div><dt>Latest interval</dt><dd id="interval">—</dd></div>
-            <div><dt>Average interval</dt><dd id="average-interval">—</dd></div>
-            <div><dt>Update frequency</dt><dd id="frequency">—</dd></div>
-            <div><dt>Updates received</dt><dd id="update-count">0</dd></div>
-          </dl>
-        </article>
-
-        <article class="card">
-          <div class="card-heading"><span>Acceleration</span><span class="mini-status">GPS-derived</span></div>
-          <div class="acceleration-row">
-            <span id="acceleration-arrow" class="acceleration-arrow" aria-hidden="true">●</span>
-            <div><strong id="acceleration-label">Waiting</strong><small id="acceleration-value">— m/s²</small></div>
+        <article class="gauge-card">
+          <div class="gauge gauge-rpm" aria-label="Virtual engine tachometer">
+            <div class="gauge-ring" aria-hidden="true"></div>
+            <span class="scale scale-a">0</span><span class="scale scale-b">2</span><span class="scale scale-c">4</span><span class="scale scale-d">6</span><span class="scale scale-e">7</span>
+            <div id="rpm-needle" class="needle" aria-hidden="true"><span></span></div><div class="needle-hub" aria-hidden="true"></div>
+            <div class="gauge-readout"><strong id="engine-rpm">720</strong><span>RPM</span></div>
           </div>
-          <p class="note">Simple indication calculated from consecutive GPS speed readings.</p>
-        </article>
-
-        <article class="card card-wide">
-          <div class="card-heading"><span>Browser &amp; API status</span><span id="api-summary" class="mini-status">Checking</span></div>
-          <div class="api-grid">
-            <div class="api-item"><span>Secure context</span><strong id="secure-context">—</strong></div>
-            <div class="api-item"><span>Geolocation API</span><strong id="geolocation-api">—</strong></div>
-            <div class="api-item"><span>Location permission</span><strong id="location-permission">—</strong></div>
-            <div class="api-item"><span>Web Audio API</span><strong id="audio-api">—</strong></div>
-          </div>
-          <details>
-            <summary>Browser details</summary>
-            <p id="browser-details" class="browser-details"></p>
-          </details>
+          <div class="gauge-caption"><span>Virtual tachometer</span><strong>×1000</strong></div>
         </article>
       </section>
 
-      <footer>
-        <span>Revora compatibility test</span>
-        <span id="last-update">No GPS fix received</span>
-      </footer>
+      <section class="telemetry" aria-label="Live telemetry">
+        <article class="telemetry-card">
+          <div class="telemetry-heading"><span>Position</span><strong id="position-status">Waiting</strong></div>
+          <dl class="compact-metrics"><div><dt>Latitude</dt><dd id="latitude">—</dd></div><div><dt>Longitude</dt><dd id="longitude">—</dd></div><div><dt>Accuracy</dt><dd id="accuracy">—</dd></div><div><dt>Heading</dt><dd id="heading">—</dd></div></dl>
+        </article>
+        <article class="telemetry-card">
+          <div class="telemetry-heading"><span>GPS updates</span><strong id="update-status">Waiting</strong></div>
+          <dl class="compact-metrics"><div><dt>Latest</dt><dd id="interval">—</dd></div><div><dt>Average</dt><dd id="average-interval">—</dd></div><div><dt>Frequency</dt><dd id="frequency">—</dd></div><div><dt>Updates</dt><dd id="update-count">0</dd></div></dl>
+        </article>
+        <article class="telemetry-card acceleration-card">
+          <div class="telemetry-heading"><span>Acceleration</span><strong>GPS-derived</strong></div>
+          <div class="acceleration-row"><span id="acceleration-arrow" class="acceleration-arrow" aria-hidden="true">●</span><div><strong id="acceleration-label">Waiting</strong><small id="acceleration-value">— m/s²</small></div></div>
+        </article>
+      </section>
+
+      <details class="diagnostics">
+        <summary><span>Browser &amp; API diagnostics</span><strong id="api-summary">Checking</strong></summary>
+        <div class="api-grid"><div><span>Secure context</span><strong id="secure-context">—</strong></div><div><span>Geolocation API</span><strong id="geolocation-api">—</strong></div><div><span>Location permission</span><strong id="location-permission">—</strong></div><div><span>Web Audio API</span><strong id="audio-api">—</strong></div></div>
+        <p id="browser-details" class="browser-details"></p>
+      </details>
+      <footer><span>Revora EV Engine</span><span id="last-update">No GPS fix received</span></footer>
     </main>
   </body>
 </html>
